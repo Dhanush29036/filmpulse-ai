@@ -74,6 +74,7 @@ export default function SentimentMonitor() {
         try {
             const r = await authFetch(`${API}/social/${filmId}/comments?limit=20`)
             if (r.ok) {
+                const data = await r.json()
                 const comments = data.comments || []
                 // Format DB comments to match tweet UI
                 const formatted = comments.map(c => ({
