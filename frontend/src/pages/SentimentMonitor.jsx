@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
-import { MessageSquare, TrendingUp, Heart, Minus, ThumbsDown, RefreshCw, Zap, Send, PlusCircle } from 'lucide-react'
+import { MessageSquare, TrendingUp, Heart, Minus, ThumbsDown, RefreshCw, Zap, Send, PlusCircle, Brain } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import './SentimentMonitor.css'
 
