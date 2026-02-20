@@ -1,0 +1,123 @@
+.campaign-form {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.campaign-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.campaign-stat {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-value {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.campaign-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* Channel Table */
+.channel-table {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.channel-header {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1.5fr 1fr 60px;
+    gap: 16px;
+    padding: 8px 16px;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.channel-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1.5fr 1fr 60px;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
+}
+
+.channel-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.channel-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+    .campaign-form {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .campaign-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .campaign-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .campaign-form {
+        grid-template-columns: 1fr;
+    }
+
+    .channel-header,
+    .channel-row {
+        grid-template-columns: 2fr 1.5fr 1fr;
+    }
+
+    .channel-row> :nth-child(4),
+    .channel-row> :nth-child(5),
+    .channel-header> :nth-child(4),
+    .channel-header> :nth-child(5) {
+        display: none;
+    }
+}

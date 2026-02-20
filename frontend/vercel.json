@@ -1,0 +1,56 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "name": "filmpulse-ai",
+    "version": 2,
+    "framework": "vite",
+    "outputDirectory": "dist",
+    "installCommand": "npm ci",
+    "buildCommand": "npm run build",
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "https://api.filmpulse.ai/api/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
+    ],
+    "env": {
+        "VITE_API_URL": "https://api.filmpulse.ai/api/v1"
+    },
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                },
+                {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                },
+                {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                }
+            ]
+        },
+        {
+            "source": "/assets/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=31536000, immutable"
+                }
+            ]
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/((?!api).*)",
+            "destination": "/index.html"
+        }
+    ]
+}

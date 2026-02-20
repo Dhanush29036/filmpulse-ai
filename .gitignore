@@ -1,0 +1,64 @@
+# Git ignore file for FilmPulse AI project
+# ─────────────────────────────────────────
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+*.so
+
+# ML model caches
+*.pkl
+*.joblib
+*.model
+backend/models_cache/
+.transformers_cache/
+
+# HuggingFace cache
+~/.cache/huggingface/
+
+# SQLite dev database
+*.db
+*.sqlite3
+
+# JavaScript / Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.docker/
+
+# SSL certificates (generate fresh, never commit)
+nginx/ssl/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# AWS credentials (use GitHub Secrets instead)
+*.pem
+*.ppk

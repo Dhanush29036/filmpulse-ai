@@ -1,0 +1,157 @@
+.sentiment-top {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+}
+
+.sentiment-stats-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sentiment-stat {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.sentiment-stat .w-full {
+    flex: 1;
+    min-width: 100%;
+}
+
+.sentiment-stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.gauge-card {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.hype-gauge {
+    display: flex;
+    justify-content: center;
+}
+
+/* Word Cloud */
+.word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    min-height: 140px;
+}
+
+.word-tag {
+    cursor: default;
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    transition: filter 0.2s, transform 0.2s;
+    user-select: none;
+}
+
+/* Tweet Feed */
+.feed-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tweet-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tweet-card {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tweet-positive {
+    border-left: 3px solid #10B981;
+}
+
+.tweet-negative {
+    border-left: 3px solid #EF4444;
+}
+
+.tweet-neutral {
+    border-left: 3px solid #F5C842;
+}
+
+.tweet-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tweet-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--grad-purple);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.tweet-user {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.tweet-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.ml-8 {
+    margin-left: 8px;
+}
+
+@media (max-width: 900px) {
+    .sentiment-top {
+        grid-template-columns: 1fr;
+    }
+
+    .gauge-card {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .feed-filters {
+        display: none;
+    }
+}
