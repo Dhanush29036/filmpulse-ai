@@ -11,8 +11,9 @@ POST /social/{film_id}/collect      — [Producer/Admin] manual trigger
 from fastapi import APIRouter, Query, Depends, BackgroundTasks, HTTPException
 from typing import Optional
 from datetime import datetime
+from sqlalchemy.orm import Session
 from auth import get_current_user, require_producer_or_admin
-from database import User
+from database import User, Film, get_db
 from mongo_db import (
     get_trend_history,
     get_trend_summary,
@@ -149,17 +150,28 @@ def get_social_comments_endpoint(
 @router.post("/social/{film_id}/collect")
 def manual_collect(
     film_id:     str,
-    film_title:  str = Query(...),
+    film_title:  str = Query(""),
     trailer_url: str = Query(""),
     background_tasks: BackgroundTasks = None,
     current_user: User = Depends(require_producer_or_admin),
+    db: Session = Depends(get_db),
 ):
     """
-    [PRODUCER / ADMIN] On-demand collection trigger (same as realtime endpoint).
+    [PRODUCER / ADMIN] On-demand collection trigger.
+    film_title is optional — auto-looked up from the DB when not provided.
     """
+    # Auto-lookup film title if not provided by the client
+    if not film_title:
+        db_film = db.query(Film).filter(Film.film_id == film_id).first()
+        if db_film:
+            film_title = db_film.title
+            trailer_url = trailer_url or ""
+        else:
+            raise HTTPException(status_code=404, detail=f"Film '{film_id}' not found. Provide film_title manually.")
+
     register_film_for_tracking(film_id, film_title, trailer_url)
     if background_tasks:
         background_tasks.add_task(run_hourly_collection, film_id, film_title, trailer_url)
-        return {"status": "queued", "film_id": film_id}
+        return {"status": "queued", "film_id": film_id, "film_title": film_title}
     result = run_hourly_collection(film_id, film_title, trailer_url)
     return {"status": "done", **result}

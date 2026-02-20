@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
-import { MessageSquare, TrendingUp, Heart, Minus, ThumbsDown, RefreshCw, Zap, Send, PlusCircle, Brain } from 'lucide-react'
+import { MessageSquare, TrendingUp, Heart, Minus, ThumbsDown, RefreshCw, Zap, Send, PlusCircle, Brain, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import './SentimentMonitor.css'
 
@@ -43,22 +43,57 @@ function HypeGauge({ score }) {
     )
 }
 
+// Inline toast notification component
+function Toast({ toast }) {
+    if (!toast) return null
+    const isSuccess = toast.type === 'success'
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6 }}
+            style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 16px', borderRadius: 10,
+                background: isSuccess ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                border: `1px solid ${isSuccess ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)'}`,
+                fontSize: '0.85rem', color: isSuccess ? '#10B981' : '#EF4444',
+                flex: '0 0 auto',
+            }}
+        >
+            {isSuccess ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+            {toast.message}
+        </motion.div>
+    )
+}
+
 export default function SentimentMonitor() {
     const { authFetch, user } = useAuth()
     const [films, setFilms] = useState([])
     const [selectedFilmId, setSelectedFilmId] = useState('')
-    const [tweets, setTweets] = useState([])
+    const [tweets, setTweets] = useState(DEMO_TWEETS)
     const [mlResult, setMlResult] = useState(null)
     const [inputText, setInputText] = useState('')
     const [analyzing, setAnalyzing] = useState(false)
-    const [live, setLive] = useState(false)
     const [filter, setFilter] = useState('all')
     const [collecting, setCollecting] = useState(false)
-    const intervalRef = useRef()
+    const [refreshing, setRefreshing] = useState(false)
+    const [toast, setToast] = useState(null)
+    const toastTimerRef = useRef(null)
+
+    const showToast = (message, type = 'success') => {
+        clearTimeout(toastTimerRef.current)
+        setToast({ message, type })
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000)
+    }
+
+    // Get the currently selected film object (for title/trailer_url)
+    const selectedFilm = films.find(f => f.film_id === selectedFilmId) || null
 
     // Fetch user's films
     useEffect(() => {
-        authFetch(`${API}/films`)
+        const query = (user && user.role === 'admin') ? '?show_all=true' : ''
+        authFetch(`${API}/films${query}`)
             .then(r => r.json())
             .then(d => {
                 const filmList = d.films || []
@@ -66,28 +101,37 @@ export default function SentimentMonitor() {
                 if (filmList.length > 0) setSelectedFilmId(filmList[0].film_id)
             })
             .catch(console.error)
-    }, [])
+    }, [user])
 
     // Fetch real social comments for selected film
     const fetchSocialComments = async (filmId = selectedFilmId) => {
         if (!filmId) return
+        setRefreshing(true)
         try {
             const r = await authFetch(`${API}/social/${filmId}/comments?limit=20`)
             if (r.ok) {
                 const data = await r.json()
                 const comments = data.comments || []
-                // Format DB comments to match tweet UI
-                const formatted = comments.map(c => ({
-                    id: c._id || Math.random(),
-                    user: `@${c.username || 'user'}`,
-                    text: c.text,
-                    severity: (c.sentiment_label || 'neutral').toLowerCase(),
-                    time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }))
-                setTweets(formatted)
+                if (comments.length > 0) {
+                    // Format DB comments to match tweet UI
+                    const formatted = comments.map(c => ({
+                        id: c._id || Math.random(),
+                        user: `@${c.username || 'user'}`,
+                        text: c.text,
+                        severity: (c.sentiment_label || 'neutral').toLowerCase(),
+                        time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }))
+                    setTweets(formatted)
+                } else {
+                    // Fall back to demo tweets when no collection has run yet
+                    setTweets(DEMO_TWEETS)
+                }
             }
         } catch (e) {
             console.error('Failed to fetch social feeds', e)
+            setTweets(DEMO_TWEETS)
+        } finally {
+            setRefreshing(false)
         }
     }
 
@@ -95,18 +139,25 @@ export default function SentimentMonitor() {
         if (selectedFilmId) fetchSocialComments()
     }, [selectedFilmId])
 
-    // Manual Trigger for Real-Time Collection (Phase 6)
+    // Trigger Scraper — passes film_title so the backend can run collection
     const triggerCollection = async () => {
         if (!selectedFilmId) return
         setCollecting(true)
         try {
-            const r = await authFetch(`${API}/social/${selectedFilmId}/collect`, { method: 'POST' })
+            const title = selectedFilm?.title || ''
+            const trailerUrl = selectedFilm?.trailer_url || ''
+            const params = new URLSearchParams({ film_title: title, trailer_url: trailerUrl })
+            const r = await authFetch(`${API}/social/${selectedFilmId}/collect?${params}`, { method: 'POST' })
             if (r.ok) {
-                alert('Social data collection triggered! Fetching new trends...')
-                setTimeout(fetchSocialComments, 5000) // Polling delay
+                showToast('Social data collection triggered! Feed will refresh in 5s.', 'success')
+                setTimeout(() => fetchSocialComments(), 5000)
+            } else {
+                const err = await r.json().catch(() => ({}))
+                showToast(err.detail || 'Collection failed. Check your permissions.', 'error')
             }
         } catch (e) {
             console.error('Trigger failed', e)
+            showToast('Network error — could not trigger scraper.', 'error')
         } finally {
             setCollecting(false)
         }
@@ -118,18 +169,24 @@ export default function SentimentMonitor() {
         try {
             const comments = inputText.split('\n').map(c => c.trim()).filter(Boolean).join(',')
             const r = await authFetch(`${API}/sentiment-analysis?comments=${encodeURIComponent(comments)}`)
+            if (!r.ok) throw new Error('API error')
             const result = await r.json()
             setMlResult(result)
 
-            // Add analyzed comments to temporary view
+            // Add analyzed comments to view with per-comment sentiment
+            const isPos = (result.sentiment_label || '').toLowerCase().includes('positive')
+            const isNeg = (result.sentiment_label || '').toLowerCase().includes('negative')
             const newTweets = inputText.split('\n').filter(Boolean).slice(0, 5).map((text, i) => {
-                const isPos = result.sentiment_label === 'Positive'
-                const labels = isPos ? 'positive' : 'neutral' // Simplified logic for demo feedback
-                return { id: Date.now() + i, user: '@analyzed_input', text: text.trim(), severity: labels, time: 'just now' }
+                const sev = isPos ? 'positive' : isNeg ? 'negative' : 'neutral'
+                return { id: Date.now() + i, user: '@analyzed_input', text: text.trim(), severity: sev, time: 'just now' }
             })
             setTweets(prev => [...newTweets, ...prev.slice(0, 8)])
-        } catch (e) { console.error(e) }
-        finally { setAnalyzing(false) }
+        } catch (e) {
+            console.error(e)
+            showToast('Sentiment analysis failed. Check the backend.', 'error')
+        } finally {
+            setAnalyzing(false)
+        }
     }
 
     const pos = tweets.filter(t => t.severity === 'positive').length
@@ -146,6 +203,14 @@ export default function SentimentMonitor() {
 
     const filtered = filter === 'all' ? tweets : tweets.filter(t => t.severity === filter)
 
+    // Determine color for ML result label
+    const getLabelColor = (label = '') => {
+        const l = label.toLowerCase()
+        if (l.includes('positive')) return '#10B981'
+        if (l.includes('negative')) return '#EF4444'
+        return '#F5C842'
+    }
+
     return (
         <div className="page sentiment-page" style={{ background: 'var(--bg-primary)' }}>
             <div className="orb orb-cyan" style={{ width: 400, height: 400, top: 0, right: -100 }} />
@@ -157,7 +222,7 @@ export default function SentimentMonitor() {
                         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, marginBottom: 4 }}>Dynamic Social Feeds</h1>
                         <p className="text-secondary">Connected to Twitter/X, YouTube & Google Trends for live audience feedback.</p>
                     </div>
-                    <div className="flex gap-12">
+                    <div className="flex gap-12" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
                         <select className="form-select form-select-sm" value={selectedFilmId} onChange={e => setSelectedFilmId(e.target.value)}>
                             <option value="">Select Film...</option>
                             {films.map(f => (<option key={f.film_id} value={f.film_id}>{f.title}</option>))}
@@ -165,14 +230,23 @@ export default function SentimentMonitor() {
                         {(user?.role === 'admin' || user?.role === 'producer') && (
                             <button className="btn btn-purple btn-sm" onClick={triggerCollection} disabled={collecting || !selectedFilmId}>
                                 {collecting ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
-                                Trigger Scraper
+                                {collecting ? 'Collecting...' : 'Trigger Scraper'}
                             </button>
                         )}
-                        <button className="btn btn-outline btn-sm" onClick={() => fetchSocialComments()}>
-                            <RefreshCw size={14} /> Refesh Feed
+                        <button className="btn btn-outline btn-sm" onClick={() => fetchSocialComments()} disabled={refreshing}>
+                            <RefreshCw size={14} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh Feed'}
                         </button>
                     </div>
                 </div>
+
+                {/* Toast notification */}
+                <AnimatePresence>
+                    {toast && (
+                        <div style={{ marginBottom: 16 }}>
+                            <Toast toast={toast} />
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* ML Input Panel */}
                 <motion.div className="glass-card p-28 mb-24" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -182,14 +256,19 @@ export default function SentimentMonitor() {
                     </div>
                     <textarea
                         style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: 'var(--text-primary)', fontFamily: 'Inter', fontSize: '0.87rem', padding: '12px 14px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
-                        placeholder={"Type comments to analyze their sentiment manually..."}
+                        placeholder={"Type or paste comments (one per line) to analyze their sentiment..."}
                         value={inputText}
                         onChange={e => setInputText(e.target.value)}
                     />
                     <div className="flex gap-12 mt-12" style={{ flexWrap: 'wrap' }}>
                         <button className="btn btn-primary btn-sm" onClick={runSentimentAnalysis} disabled={analyzing || !inputText.trim()}>
-                            {analyzing ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} Analyze Now
+                            {analyzing ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} {analyzing ? 'Analyzing...' : 'Analyze Now'}
                         </button>
+                        {inputText && (
+                            <button className="btn btn-outline btn-sm" onClick={() => { setInputText(''); setMlResult(null) }}>
+                                Clear
+                            </button>
+                        )}
                     </div>
                 </motion.div>
 
@@ -203,8 +282,26 @@ export default function SentimentMonitor() {
                             </div>
                             <div className="stat-item">
                                 <div className="text-muted text-xs">Primary Sentiment</div>
-                                <div className="text-xl font-black" style={{ color: mlResult.sentiment_label === 'Positive' ? '#10B981' : '#F5C842' }}>{mlResult.sentiment_label}</div>
+                                <div className="text-xl font-black" style={{ color: getLabelColor(mlResult.sentiment_label) }}>{mlResult.sentiment_label}</div>
                             </div>
+                            <div className="stat-item">
+                                <div className="text-muted text-xs">Positive</div>
+                                <div className="text-xl font-black" style={{ color: '#10B981' }}>{mlResult.positive_pct}%</div>
+                            </div>
+                            <div className="stat-item">
+                                <div className="text-muted text-xs">Negative</div>
+                                <div className="text-xl font-black" style={{ color: '#EF4444' }}>{mlResult.negative_pct}%</div>
+                            </div>
+                            {mlResult.top_keywords?.length > 0 && (
+                                <div className="stat-item" style={{ gridColumn: '1 / -1' }}>
+                                    <div className="text-muted text-xs mb-8">Top Keywords</div>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        {mlResult.top_keywords.map(kw => (
+                                            <span key={kw} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', fontSize: '0.78rem', color: '#A78BFA' }}>{kw}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -243,7 +340,12 @@ export default function SentimentMonitor() {
                     <div className="flex items-center justify-between mb-20">
                         <div className="flex items-center gap-12">
                             <MessageSquare size={18} color="#06B6D4" />
-                            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem' }}>Social Feed Insights</h3>
+                            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem' }}>
+                                Social Feed Insights
+                                <span style={{ marginLeft: 8, fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                                    {tweets.length} posts
+                                </span>
+                            </h3>
                         </div>
                         <div className="feed-filters">
                             {['all', 'positive', 'neutral', 'negative'].map(f => (
@@ -252,8 +354,11 @@ export default function SentimentMonitor() {
                         </div>
                     </div>
 
-                    {tweets.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>No social feeds collected yet. Click "Trigger Scraper".</div>
+                    {filtered.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>
+                            No {filter !== 'all' ? filter : ''} comments found.
+                            {filter !== 'all' && <span> <button className="btn btn-outline btn-sm" style={{ marginLeft: 8 }} onClick={() => setFilter('all')}>Show All</button></span>}
+                        </div>
                     ) : (
                         <div className="tweet-feed">
                             <AnimatePresence>
@@ -264,7 +369,14 @@ export default function SentimentMonitor() {
                                                 <div className="tweet-avatar">{t.user[1].toUpperCase()}</div>
                                                 <span className="tweet-user">{t.user}</span>
                                             </div>
-                                            <span className="text-muted text-xs">{t.time}</span>
+                                            <div className="flex items-center gap-8">
+                                                <span style={{
+                                                    padding: '2px 8px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 600, textTransform: 'capitalize',
+                                                    background: t.severity === 'positive' ? 'rgba(16,185,129,0.15)' : t.severity === 'negative' ? 'rgba(239,68,68,0.15)' : 'rgba(245,200,66,0.15)',
+                                                    color: t.severity === 'positive' ? '#10B981' : t.severity === 'negative' ? '#EF4444' : '#F5C842',
+                                                }}>{t.severity}</span>
+                                                <span className="text-muted text-xs">{t.time}</span>
+                                            </div>
                                         </div>
                                         <p className="tweet-text">{t.text}</p>
                                     </motion.div>
