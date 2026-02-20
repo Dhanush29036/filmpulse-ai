@@ -20,8 +20,9 @@ export default function MarketIntelligence() {
         authFetch(`${API}/films`)
             .then(r => r.json())
             .then(d => {
-                setFilms(d)
-                if (d.length > 0) setSelectedFilmId(d[0].id)
+                const filmList = d.films || []
+                setFilms(filmList)
+                if (filmList.length > 0) setSelectedFilmId(filmList[0].film_id)
             })
             .catch(console.error)
     }, [])
@@ -77,7 +78,7 @@ export default function MarketIntelligence() {
                                 style={{ minWidth: 200 }}
                             >
                                 <option value="">Select a Film...</option>
-                                {films.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+                                {films.map(f => <option key={f.film_id} value={f.film_id}>{f.title}</option>)}
                             </select>
                         </div>
                         <button className="btn btn-outline btn-sm" onClick={fetchIntelligence} disabled={loading}>

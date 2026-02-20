@@ -61,8 +61,9 @@ export default function SentimentMonitor() {
         authFetch(`${API}/films`)
             .then(r => r.json())
             .then(d => {
-                setFilms(d)
-                if (d.length > 0) setSelectedFilmId(d[0].id)
+                const filmList = d.films || []
+                setFilms(filmList)
+                if (filmList.length > 0) setSelectedFilmId(filmList[0].film_id)
             })
             .catch(console.error)
     }, [])
@@ -73,14 +74,14 @@ export default function SentimentMonitor() {
         try {
             const r = await authFetch(`${API}/social/${filmId}/comments?limit=20`)
             if (r.ok) {
-                const data = await r.json()
+                const comments = data.comments || []
                 // Format DB comments to match tweet UI
-                const formatted = data.map(c => ({
+                const formatted = comments.map(c => ({
                     id: c._id || Math.random(),
-                    user: `@${c.platform_user || 'user'}`,
-                    text: c.comment_text,
-                    severity: c.sentiment_label?.toLowerCase() || 'neutral',
-                    time: new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    user: `@${c.username || 'user'}`,
+                    text: c.text,
+                    severity: (c.sentiment_label || 'neutral').toLowerCase(),
+                    time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }))
                 setTweets(formatted)
             }
@@ -158,7 +159,7 @@ export default function SentimentMonitor() {
                     <div className="flex gap-12">
                         <select className="form-select form-select-sm" value={selectedFilmId} onChange={e => setSelectedFilmId(e.target.value)}>
                             <option value="">Select Film...</option>
-                            {films.map(f => (<option key={f.id} value={f.id}>{f.title}</option>))}
+                            {films.map(f => (<option key={f.film_id} value={f.film_id}>{f.title}</option>))}
                         </select>
                         {(user?.role === 'admin' || user?.role === 'producer') && (
                             <button className="btn btn-purple btn-sm" onClick={triggerCollection} disabled={collecting || !selectedFilmId}>
