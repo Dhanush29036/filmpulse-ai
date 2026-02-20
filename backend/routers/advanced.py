@@ -13,8 +13,9 @@ All 8 Phase 8 endpoints:
 """
 from fastapi import APIRouter, Query, Depends
 from typing import Optional, List
+from sqlalchemy.orm import Session
 from auth import get_current_user, require_producer_or_admin
-from database import User
+from database import User, Film, get_db
 from ml.caption_generator import (
     generate_taglines,
     generate_marketing_captions,
@@ -190,7 +191,8 @@ def festival_score(
 # ── 7. Full Market Intelligence Report ───────────────────────────────────────
 @router.get("/market-intelligence")
 def market_intelligence(
-    film_title:      str   = Query(...),
+    film_id:         Optional[int] = Query(None, description="Internal Film ID to autofill data"),
+    film_title:      Optional[str] = Query(None),
     genre:           str   = Query("Action"),
     language:        str   = Query("Hindi"),
     budget_cr:       float = Query(80),
@@ -200,18 +202,32 @@ def market_intelligence(
     subject_novelty: float = Query(0.6),
     critical_tone:   float = Query(0.7),
     platform:        str   = Query("Theatre"),
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_producer_or_admin),
 ):
     """
-    [PRODUCER / ADMIN] Compound AI intelligence report combining all 5 engines:
-      1. Competitor analysis (5 most similar historical films)
-      2. Regional heatmap summary (top 5 states + best zone)
-      3. Festival probability (top 3 festivals)
-      4. Poster taglines (best 1 per tone)
-      5. Platform captions (Instagram + Twitter)
-
-    Returns a single comprehensive JSON for presentation / PDF export.
+    [PRODUCER / ADMIN] Compound AI intelligence report combining all 5 engines.
+    If film_id is provided, metadata is fetched from the database.
     """
+    # 1. Autofill from DB if ID exists
+    if film_id:
+        film = db.query(Film).filter(Film.id == film_id).first()
+        if film:
+            film_title = film.title
+            genre = film.genre or genre
+            language = film.language or language
+            budget_cr = film.budget / 10000000 if film.budget else budget_cr  # simple INR -> Cr
+            cast_popularity = film.cast_popularity or cast_popularity
+            platform = film.platform or platform
+            # month extraction (naive)
+            if film.release_date and "-" in film.release_date:
+                try:
+                    release_month = int(film.release_date.split("-")[1])
+                except: pass
+
+    if not film_title:
+        film_title = "Untitled Project"
+
     # Run all 5 engines
     competitors = run_competitor_analysis(
         film_title=film_title, genre=genre, budget_cr=budget_cr,
